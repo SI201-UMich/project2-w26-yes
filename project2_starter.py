@@ -87,7 +87,83 @@ def get_listing_details(listing_id) -> dict:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    pass
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(base_dir, "html_files", f"listing_{listing_id}.html")
+    with open(path, encoding="utf-8-sig") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+    text = soup.get_text(" ", strip=True)
+
+    policy_m = re.search(r"Policy number:\s*(\S+)", text, re.I)
+    if policy_m:
+        policy_raw = policy_m.group(1).strip().strip("\ufeff")
+        pl = policy_raw.lower()
+        if pl == "pending":
+            policy_number = "Pending"
+        elif pl == "exempt":
+            policy_number = "Exempt"
+        else:
+            policy_number = policy_raw
+    else:
+        policy_number = "Pending"
+
+    host_type = "Superhost" if "Superhost" in text else "regular"
+
+    host_name = ""
+    for h2 in soup.find_all("h2"):
+        ht = h2.get_text(" ", strip=True)
+        hm = re.search(r"hosted by\s+(.+)$", ht, re.I)
+        if hm:
+            host_name = re.sub(r"\s+", " ", hm.group(1).strip())
+            break
+
+    subtitle = ""
+    for h2 in soup.find_all("h2"):
+        ht = h2.get_text(" ", strip=True)
+        if re.search(r"hosted\s+by", ht, re.I) and re.search(
+            r"\b(?:Entire|Private|Shared|loft|home|suite|guesthouse|apartment|rental|condo|guest)\b",
+            ht,
+            re.I,
+        ):
+            subtitle = ht
+            break
+    if not subtitle:
+        h1 = soup.find("h1")
+        subtitle = h1.get_text(" ", strip=True) if h1 else ""
+
+    if "Private" in subtitle:
+        room_type = "Private Room"
+    elif "Shared" in subtitle:
+        room_type = "Shared Room"
+    else:
+        room_type = "Entire Room"
+
+    location_rating = 0.0
+    for loc in soup.find_all(string=re.compile(r"^Location$")):
+        sib = loc.parent.find_next_sibling()
+        if sib:
+            st = sib.get_text(strip=True)
+            rm = re.match(r"^(\d+\.\d+)$", st)
+            if rm:
+                location_rating = float(rm.group(1))
+                break
+        parent = loc.parent
+        if parent:
+            combined = parent.get_text(" ", strip=True)
+            rm2 = re.search(r"Location\s+(\d+\.\d+)", combined)
+            if rm2:
+                location_rating = float(rm2.group(1))
+                break
+
+    lid = str(listing_id)
+    return {
+        lid: {
+            "policy_number": policy_number,
+            "host_type": host_type,
+            "host_name": host_name,
+            "room_type": room_type,
+            "location_rating": location_rating,
+        }
+    }
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
