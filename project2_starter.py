@@ -184,24 +184,66 @@ def validate_policy_numbers(data) -> list[str]:
 
 
 def google_scholar_searcher(query):
-    url = f"https://scholar.google.com/scholar?q={quote_plus(query)}"
+    base = "https://scholar.google.com"
+    search_url = f"{base}/scholar?q={quote_plus(query)}"
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate",
+        "Referer": f"{base}/",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
     }
+
+    def collect_titles(html: str) -> list[str]:
+        soup = BeautifulSoup(html, "html.parser")
+        seen: set[str] = set()
+        out: list[str] = []
+        selectors = (
+            "#gs_res_ccl_mid h3.gs_rt a",
+            "h3.gs_rt a",
+            "#gs_res_ccl_mid .gs_rt a",
+            "div.gs_ri h3 a",
+            ".gs_rt a",
+        )
+        for sel in selectors:
+            for a in soup.select(sel):
+                t = a.get_text(" ", strip=True)
+                if t and t not in seen:
+                    seen.add(t)
+                    out.append(t)
+            if out:
+                break
+        if not out:
+            for h3 in soup.select("h3.gs_rt"):
+                a = h3.find("a", href=True)
+                if a:
+                    t = a.get_text(" ", strip=True)
+                    if t and t not in seen:
+                        seen.add(t)
+                        out.append(t)
+        return out
+
     try:
-        resp = requests.get(url, headers=headers, timeout=20)
+        session = requests.Session()
+        session.headers.update(headers)
+        session.get(base, timeout=15)
+        resp = session.get(search_url, timeout=25)
         resp.raise_for_status()
     except requests.RequestException:
         return []
-    soup = BeautifulSoup(resp.text, "html.parser")
-    titles = []
-    for h3 in soup.select("h3.gs_rt"):
-        a = h3.find("a")
-        if a and a.get_text(strip=True):
-            titles.append(a.get_text(strip=True))
+
+    if "sorry" in resp.text.lower() and "captcha" in resp.text.lower():
+        return []
+
+    titles = collect_titles(resp.text)
     return titles
 
 
