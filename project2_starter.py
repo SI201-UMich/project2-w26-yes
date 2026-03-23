@@ -1,46 +1,27 @@
-# SI 201 HW4 (Library Checkout System)
-# Your name:
-# Your student id:
-# Your email:
-# Who or what you worked with on this homework (including generative AI like ChatGPT):
+# Your name: Ayush Madhav Kumar
+# Your student id: 37761271
+# Your email: ayushmk@umich.edu
+# Who or what you worked with on this homework (including generative AI like ChatGPT): no one
 # If you worked with generative AI also add a statement for how you used it.
-# e.g.:
-# Asked ChatGPT for hints on debugging and for suggestions on overall code structure
-#
-# Did your use of GenAI on this assignment align with your goals and guidelines in your Gen AI contract? If not, why?
-#
-# --- ARGUMENTS & EXPECTED RETURN VALUES PROVIDED --- #
-# --- SEE INSTRUCTIONS FOR FULL DETAILS ON METHOD IMPLEMENTATION --- #
+#no did not
+# Did your use of GenAI on this assignment align with your goals and guidelines in your Gen AI contract? If not, why?  
+# yes it did 
 
 from bs4 import BeautifulSoup
-import re
-import os
+from urllib.parse import quote_plus
 import csv
+import os
+import re
 import unittest
-import requests  # kept for extra credit parity
+import requests
 
-
-# IMPORTANT NOTE:
-"""
-If you are getting "encoding errors" while trying to open, read, or write from a file, add the following argument to any of your open() functions:
-    encoding="utf-8-sig"
-"""
+_POLICY_RE = (
+    re.compile(r"^20\d{2}-00\d{4}STR$"),
+    re.compile(r"^STR-000\d{4}$"),
+)
 
 
 def load_listing_results(html_path) -> list[tuple]:
-    """
-    Load file data from html_path and parse through it to find listing titles and listing ids.
-
-    Args:
-        html_path (str): The path to the HTML file containing the search results
-
-    Returns:
-        list[tuple]: A list of tuples containing (listing_title, listing_id)
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
     with open(html_path, encoding="utf-8-sig") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
 
@@ -59,34 +40,9 @@ def load_listing_results(html_path) -> list[tuple]:
         if listing_id:
             results.append((title, listing_id))
     return results
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
 
 
 def get_listing_details(listing_id) -> dict:
-    """
-    Parse through listing_<id>.html to extract listing details.
-
-    Args:
-        listing_id (str): The listing id of the Airbnb listing
-
-    Returns:
-        dict: Nested dictionary in the format:
-        {
-            "<listing_id>": {
-                "policy_number": str,
-                "host_type": str,
-                "host_name": str,
-                "room_type": str,
-                "location_rating": float
-            }
-        }
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
     base_dir = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(base_dir, "html_files", f"listing_{listing_id}.html")
     with open(path, encoding="utf-8-sig") as f:
@@ -164,26 +120,9 @@ def get_listing_details(listing_id) -> dict:
             "location_rating": location_rating,
         }
     }
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
 
 
 def create_listing_database(html_path) -> list[tuple]:
-    """
-    Use prior functions to gather all necessary information and create a database of listings.
-
-    Args:
-        html_path (str): The path to the HTML file containing the search results
-
-    Returns:
-        list[tuple]: A list of tuples. Each tuple contains:
-        (listing_title, listing_id, policy_number, host_type, host_name, room_type, location_rating)
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
     rows: list[tuple] = []
     for listing_title, listing_id in load_listing_results(html_path):
         details = get_listing_details(listing_id)[str(listing_id)]
@@ -199,28 +138,9 @@ def create_listing_database(html_path) -> list[tuple]:
             )
         )
     return rows
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
 
 
 def output_csv(data, filename) -> None:
-    """
-    Write data to a CSV file with the provided filename.
-
-    Sort by Location Rating (descending).
-
-    Args:
-        data (list[tuple]): A list of tuples containing listing information
-        filename (str): The name of the CSV file to be created and saved to
-
-    Returns:
-        None
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
     sorted_rows = sorted(data, key=lambda row: row[6], reverse=True)
     header = [
         "Listing Title",
@@ -235,128 +155,132 @@ def output_csv(data, filename) -> None:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerows(sorted_rows)
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
 
 
 def avg_location_rating_by_room_type(data) -> dict:
-    """
-    Calculate the average location_rating for each room_type.
-
-    Excludes rows where location_rating == 0.0 (meaning the rating
-    could not be found in the HTML).
-
-    Args:
-        data (list[tuple]): The list returned by create_listing_database()
-
-    Returns:
-        dict: {room_type: average_location_rating}
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
-    pass
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for row in data:
+        room_type = row[5]
+        rating = row[6]
+        if rating == 0.0:
+            continue
+        sums[room_type] = sums.get(room_type, 0.0) + rating
+        counts[room_type] = counts.get(room_type, 0) + 1
+    return {rt: sums[rt] / counts[rt] for rt in sums}
 
 
 def validate_policy_numbers(data) -> list[str]:
-    """
-    Validate policy_number format for each listing in data.
-    Ignore "Pending" and "Exempt" listings.
-
-    Args:
-        data (list[tuple]): A list of tuples returned by create_listing_database()
-
-    Returns:
-        list[str]: A list of listing_id values whose policy numbers do NOT match the valid format
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
-    pass
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
+    invalid: list[str] = []
+    for row in data:
+        listing_id = row[1]
+        policy = row[2]
+        if policy in ("Pending", "Exempt"):
+            continue
+        if any(p.match(policy) for p in _POLICY_RE):
+            continue
+        invalid.append(str(listing_id))
+    return invalid
 
 
-# EXTRA CREDIT
 def google_scholar_searcher(query):
-    """
-    EXTRA CREDIT
-
-    Args:
-        query (str): The search query to be used on Google Scholar
-    Returns:
-        List of titles on the first page (list)
-    """
-    # TODO: Implement checkout logic following the instructions
-    # ==============================
-    # YOUR CODE STARTS HERE
-    # ==============================
-    pass
-    # ==============================
-    # YOUR CODE ENDS HERE
-    # ==============================
+    url = f"https://scholar.google.com/scholar?q={quote_plus(query)}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=20)
+        resp.raise_for_status()
+    except requests.RequestException:
+        return []
+    soup = BeautifulSoup(resp.text, "html.parser")
+    titles = []
+    for h3 in soup.select("h3.gs_rt"):
+        a = h3.find("a")
+        if a and a.get_text(strip=True):
+            titles.append(a.get_text(strip=True))
+    return titles
 
 
 class TestCases(unittest.TestCase):
     def setUp(self):
         self.base_dir = os.path.abspath(os.path.dirname(__file__))
         self.search_results_path = os.path.join(self.base_dir, "html_files", "search_results.html")
-
         self.listings = load_listing_results(self.search_results_path)
         self.detailed_data = create_listing_database(self.search_results_path)
 
     def test_load_listing_results(self):
-        # TODO: Check that the number of listings extracted is 18.
-        # TODO: Check that the FIRST (title, id) tuple is  ("Loft in Mission District", "1944564").
-        pass
+        self.assertEqual(len(self.listings), 18)
+        self.assertEqual(self.listings[0], ("Loft in Mission District", "1944564"))
 
     def test_get_listing_details(self):
         html_list = ["467507", "1550913", "1944564", "4614763", "6092596"]
+        results = [get_listing_details(lid) for lid in html_list]
 
-        # TODO: Call get_listing_details() on each listing id above and save results in a list.
+        d467 = results[0]["467507"]
+        self.assertEqual(d467["policy_number"], "STR-0005349")
 
-        # TODO: Spot-check a few known values by opening the corresponding listing_<id>.html files.
-        # 1) Check that listing 467507 has the correct policy number "STR-0005349".
-        # 2) Check that listing 1944564 has the correct host type "Superhost" and room type "Entire Room".
-        # 3) Check that listing 1944564 has the correct location rating 4.9.
-        pass
+        d194 = results[2]["1944564"]
+        self.assertEqual(d194["host_type"], "Superhost")
+        self.assertEqual(d194["room_type"], "Entire Room")
+        self.assertEqual(d194["location_rating"], 4.9)
+
+        self.assertIn("policy_number", results[3]["4614763"])
+        self.assertIn("room_type", results[4]["6092596"])
 
     def test_create_listing_database(self):
-        # TODO: Check that each tuple in detailed_data has exactly 7 elements:
-        # (listing_title, listing_id, policy_number, host_type, host_name, room_type, location_rating)
-
-        # TODO: Spot-check the LAST tuple is ("Guest suite in Mission District", "467507", "STR-0005349", "Superhost", "Jennifer", "Entire Room", 4.8).
-        pass
+        for row in self.detailed_data:
+            self.assertEqual(len(row), 7)
+        self.assertEqual(
+            self.detailed_data[-1],
+            (
+                "Guest suite in Mission District",
+                "467507",
+                "STR-0005349",
+                "Superhost",
+                "Jennifer",
+                "Entire Room",
+                4.8,
+            ),
+        )
 
     def test_output_csv(self):
         out_path = os.path.join(self.base_dir, "test.csv")
-
-        # TODO: Call output_csv() to write the detailed_data to a CSV file.
-        # TODO: Read the CSV back in and store rows in a list.
-        # TODO: Check that the first data row matches ["Guesthouse in San Francisco", "49591060", "STR-0000253", "Superhost", "Ingrid", "Entire Room", "5.0"].
-
-        os.remove(out_path)
+        try:
+            output_csv(self.detailed_data, out_path)
+            with open(out_path, newline="", encoding="utf-8-sig") as f:
+                rows = list(csv.reader(f))
+            self.assertEqual(
+                rows[1],
+                [
+                    "Guesthouse in San Francisco",
+                    "49591060",
+                    "STR-0000253",
+                    "Superhost",
+                    "Ingrid",
+                    "Entire Room",
+                    "5.0",
+                ],
+            )
+        finally:
+            if os.path.isfile(out_path):
+                os.remove(out_path)
 
     def test_avg_location_rating_by_room_type(self):
-        # TODO: Call avg_location_rating_by_room_type() and save the output.
-        # TODO: Check that the average for "Private Room" is 4.9.
-        pass
+        averages = avg_location_rating_by_room_type(self.detailed_data)
+        self.assertEqual(averages["Private Room"], 4.9)
 
     def test_validate_policy_numbers(self):
-        # TODO: Call validate_policy_numbers() on detailed_data and save the result into a variable invalid_listings.
-        # TODO: Check that the list contains exactly "16204265" for this dataset.
-        pass
+        invalid_listings = validate_policy_numbers(self.detailed_data)
+        self.assertEqual(invalid_listings, ["16204265"])
 
 
 def main():
-    detailed_data = create_listing_database(os.path.join("html_files", "search_results.html"))
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "html_files", "search_results.html")
+    detailed_data = create_listing_database(html_path)
     output_csv(detailed_data, "airbnb_dataset.csv")
 
 
