@@ -41,7 +41,24 @@ def load_listing_results(html_path) -> list[tuple]:
     # ==============================
     # YOUR CODE STARTS HERE
     # ==============================
-    pass
+    with open(html_path, encoding="utf-8-sig") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    results: list[tuple] = []
+    for card in soup.find_all(attrs={"data-testid": "card-container"}):
+        title_el = card.find(attrs={"data-testid": "listing-card-title"})
+        if not title_el:
+            continue
+        title = title_el.get_text(strip=True)
+        listing_id = None
+        for a in card.find_all("a", href=True):
+            m = re.search(r"/rooms/(?:plus/)?(\d+)", a["href"])
+            if m:
+                listing_id = m.group(1)
+                break
+        if listing_id:
+            results.append((title, listing_id))
+    return results
     # ==============================
     # YOUR CODE ENDS HERE
     # ==============================
